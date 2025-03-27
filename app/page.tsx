@@ -52,34 +52,48 @@ export default function Home() {
 
       // Make parallel requests for content and screenshot
       const scrapeStart = performance.now();
-      const [contentResponse, screenshotResponse] = await Promise.all([
-        scrapeWebsite({
-          url,
-          renderJs: true,
-          premium: true,
-          screenshot: false,
-          ultraPremium: false,
-          device: "desktop",
-          autoScroll: false,
-        }),
-        scrapeWebsite({
+
+      // First, get the content which is essential
+      const contentResponse = await scrapeWebsite({
+        url,
+        renderJs: true,
+        premium: false,
+        screenshot: false,
+        ultraPremium: true,
+        device: "desktop",
+        autoScroll: false,
+      });
+
+      // Then try to get the screenshot, but don't fail if it errors
+      let screenshotResponse: {
+        success: boolean;
+        screenshotUrl?: string;
+        error?: string;
+      } = { success: false };
+
+      try {
+        const response = await scrapeWebsite({
           url,
           screenshot: true,
           renderJs: true,
-          premium: true,
-          ultraPremium: false,
+          premium: false,
+          ultraPremium: true,
           device: "desktop",
           autoScroll: false,
-        }),
-      ]);
+        });
+        screenshotResponse = response;
+      } catch (err) {
+        console.error("Screenshot scraping failed:", err);
+        screenshotResponse.error =
+          err instanceof Error ? err.message : "Unknown screenshot error";
+      }
+
       const scrapeEnd = performance.now();
       setScrapeDuration((scrapeEnd - scrapeStart) / 1000);
 
-      if (!contentResponse.success || !screenshotResponse.success) {
+      if (!contentResponse.success) {
         throw new Error(
-          contentResponse.error ||
-            screenshotResponse.error ||
-            "Failed to scrape website"
+          contentResponse.error || "Failed to scrape website content"
         );
       }
 
@@ -87,13 +101,22 @@ export default function Home() {
       console.log("Content response:", contentResponse);
       console.log("Screenshot response:", screenshotResponse);
 
+      // Make sure content is a string
+      const htmlContentString =
+        typeof content === "string" ? content : JSON.stringify(content);
+
       // Use server action to generate component with AI
       const aiStart = performance.now();
-      console.log("Screenshot URL:", screenshotResponse.screenshotUrl);
+      // Safe access to the screenshotUrl which might not exist
+      const screenshotUrl = screenshotResponse.success
+        ? screenshotResponse.screenshotUrl
+        : undefined;
+      console.log("Screenshot URL:", screenshotUrl);
+
       const generationResult = await generateComponent({
         url,
-        htmlContent: content || "",
-        screenshotUrl: screenshotResponse.screenshotUrl,
+        htmlContent: htmlContentString,
+        screenshotUrl,
         startTime: Date.now(),
       });
       const aiEnd = performance.now();

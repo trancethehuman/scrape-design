@@ -18,6 +18,7 @@ export interface GenerateComponentResponse {
   code?: string;
   error?: string;
   processingTime?: number;
+  debugInfo?: any;
 }
 
 export async function generateComponent(
@@ -25,11 +26,19 @@ export async function generateComponent(
 ): Promise<GenerateComponentResponse> {
   try {
     // Validate input data
+    console.log("Input received:", {
+      url: input.url,
+      htmlContentType: typeof input.htmlContent,
+      htmlContentLength: input.htmlContent?.length,
+      hasScreenshotUrl: !!input.screenshotUrl,
+      startTime: input.startTime,
+    });
+
     const { url, htmlContent, screenshotUrl, startTime } =
       generateComponentInputSchema.parse(input);
 
     // Create the prompt for the AI model
-    const prompt = `
+    const promptText = `
 You are a web developer converting a scraped website into a React component using shadcn/ui components.
 
 The website I want to convert is: ${url}
@@ -45,6 +54,8 @@ Create a React component that:
 3. Preserves the main content, layout and functionality
 4. Includes all text content but styled better
 5. Uses proper TypeScript and Tailwind CSS
+6. Do not write the backticks in the code
+7. Do not import any components from shadcn/ui, just use the components directly in the code. Start with the function declaration for the main component.
 
 Return ONLY the complete React component code with no explanations or comments. The component should be client-side and start with "use client";
 `;
@@ -54,28 +65,37 @@ Return ONLY the complete React component code with no explanations or comments. 
 
     let result;
 
-    if (screenshotUrl) {
-      // With image
-      console.log("Making multimodal request with image URL");
-      result = await generateText({
-        model: google("gemini-2.0-flash"),
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image", image: screenshotUrl },
-            ],
-          },
-        ],
-      });
-    } else {
-      // Text only
-      console.log("Making text-only request");
-      result = await generateText({
-        model: google("gemini-2.0-flash"),
-        prompt: prompt,
-      });
+    try {
+      if (screenshotUrl) {
+        // With image
+        console.log("Making multimodal request with image URL");
+        result = await generateText({
+          model: google("gemini-2.0-flash"),
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: promptText },
+                { type: "image", image: screenshotUrl },
+              ],
+            },
+          ],
+        });
+      } else {
+        // Text only
+        console.log("Making text-only request");
+        result = await generateText({
+          model: google("gemini-2.0-flash"),
+          prompt: promptText,
+        });
+      }
+    } catch (aiError) {
+      console.error("AI SDK error:", aiError);
+      return {
+        success: false,
+        error: aiError instanceof Error ? aiError.message : "AI model error",
+        debugInfo: aiError,
+      };
     }
 
     // Calculate processing time
@@ -92,6 +112,7 @@ Return ONLY the complete React component code with no explanations or comments. 
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
+      debugInfo: error,
     };
   }
 }
