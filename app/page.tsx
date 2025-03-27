@@ -1,103 +1,113 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { Editor } from "@/components/editor";
+import { Preview } from "@/components/preview";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { examples } from "@/lib/examples";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [code, setCode] = useState(examples.button.code);
+  const [activeTab, setActiveTab] = useState("editor");
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const handleCodeChange = (value: string) => {
+    setCode(value);
+  };
+
+  // Load Babel standalone script
+  useEffect(() => {
+    const script = document.createElement("script");
+    script.src = "https://unpkg.com/@babel/standalone/babel.min.js";
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  return (
+    <main className="flex flex-col bg-slate-50 overflow-hidden h-screen">
+      <header className="border-b bg-white shadow-sm shrink-0 h-14 z-10">
+        <div className="w-full h-full px-4 flex items-center">
+          <h1 className="text-xl font-bold text-slate-800">
+            Component Preview
+          </h1>
+          <div className="ml-auto flex items-center space-x-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCode(examples.button.code)}
+              className="text-slate-700 hover:text-slate-900"
+            >
+              Button Example
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCode(examples.card.code)}
+              className="text-slate-700 hover:text-slate-900"
+            >
+              Card Example
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCode(examples.form.code)}
+              className="text-slate-700 hover:text-slate-900"
+            >
+              Form Example
+            </Button>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+      </header>
+
+      <div className="w-full flex-1 flex flex-col h-[calc(100vh-3.5rem)]">
+        <Tabs
+          defaultValue="editor"
+          value={activeTab}
+          onValueChange={setActiveTab}
+          className="md:hidden flex-1 flex flex-col h-full"
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+          <TabsList className="grid w-full grid-cols-2 mb-2 absolute bottom-4 left-1/2 transform -translate-x-1/2 z-10 w-36 bg-slate-800/80 text-white">
+            <TabsTrigger
+              value="editor"
+              className="data-[state=active]:bg-slate-700"
+            >
+              Code
+            </TabsTrigger>
+            <TabsTrigger
+              value="preview"
+              className="data-[state=active]:bg-slate-700"
+            >
+              Result
+            </TabsTrigger>
+          </TabsList>
+          <TabsContent
+            value="editor"
+            className="flex-1 data-[state=active]:flex flex-col h-full"
+          >
+            <Editor code={code} onChange={handleCodeChange} />
+          </TabsContent>
+          <TabsContent
+            value="preview"
+            className="flex-1 data-[state=active]:flex flex-col h-full"
+          >
+            <Preview code={code} />
+          </TabsContent>
+        </Tabs>
+
+        <div className="hidden md:grid md:grid-cols-2 h-full relative">
+          <div className="h-full col-span-1">
+            <Editor code={code} onChange={handleCodeChange} />
+          </div>
+          <div className="absolute top-0 bottom-0 left-1/2 w-px bg-slate-200"></div>
+          <div className="h-full col-span-1">
+            <Preview code={code} />
+          </div>
+        </div>
+      </div>
+    </main>
   );
 }

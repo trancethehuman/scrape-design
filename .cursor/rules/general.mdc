@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- Never write in-line comments in code
+- Always write a short plan first before writing code and implementing
