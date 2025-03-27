@@ -40,16 +40,11 @@ export async function generateComponent(
 
     // Create the prompt for the AI model
     const promptText = `
-You take a website's raw HTML and replicate it as a React component using shadcn/ui components.
+You are a web developer and see a website and redesign it as a React component using shadcn/ui components.
 
 It has to look like the original website.
 
-Here is the HTML content of the page:
-\`\`\`html
-${htmlContent.substring(0, 700000)}
-\`\`\`
-
-Create a React component that:
+Create a React component to start with (call it Preview), then inside:
 1. Uses only shadcn/ui components (Button, Card, Input, etc.)
 2. Creates a clean, modern version of this website
 3. Preserves the main content, layout and functionality
@@ -60,6 +55,8 @@ Create a React component that:
 8. Do not write export at the end of the file, just write the component code.
 9. The page should be a component, and the component name should always be Preview. Look at the example below for the correct syntax.
 10. Make sure to represent the whole page, and design it nicely according to good design practices.
+
+
 
 Here's an example of a working page as Preview component:
 <example>
@@ -121,7 +118,9 @@ Return ONLY the complete React component code with no explanations or comments.
         // With image
         console.log("Making multimodal request with image URL");
         result = await generateText({
-          model: google("gemini-2.5-pro-exp-03-25"),
+          model: google("gemini-2.0-flash"),
+          maxTokens: 80000,
+          temperature: 0,
           messages: [
             {
               role: "user",
