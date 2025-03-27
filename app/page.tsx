@@ -71,22 +71,22 @@ export default function Home() {
         error?: string;
       } = { success: false };
 
-      try {
-        const response = await scrapeWebsite({
-          url,
-          screenshot: true,
-          renderJs: true,
-          premium: false,
-          ultraPremium: true,
-          device: "desktop",
-          autoScroll: false,
-        });
-        screenshotResponse = response;
-      } catch (err) {
-        console.error("Screenshot scraping failed:", err);
-        screenshotResponse.error =
-          err instanceof Error ? err.message : "Unknown screenshot error";
-      }
+      // try {
+      //   const response = await scrapeWebsite({
+      //     url,
+      //     screenshot: true,
+      //     renderJs: true,
+      //     premium: false,
+      //     ultraPremium: true,
+      //     device: "desktop",
+      //     autoScroll: false,
+      //   });
+      //   screenshotResponse = response;
+      // } catch (err) {
+      //   console.error("Screenshot scraping failed:", err);
+      //   screenshotResponse.error =
+      //     err instanceof Error ? err.message : "Unknown screenshot error";
+      // }
 
       const scrapeEnd = performance.now();
       setScrapeDuration((scrapeEnd - scrapeStart) / 1000);

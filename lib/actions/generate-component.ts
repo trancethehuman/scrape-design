@@ -56,8 +56,81 @@ Create a React component that:
 5. Uses proper TypeScript and Tailwind CSS
 6. Do not write the backticks in the code
 7. Do not import any components from shadcn/ui, just use the components directly in the code. Start with the function declaration for the main component.
+8. Do not write export at the end of the file, just write the component code.
+9. The component name should always be Prevew. Look at the example below for the correct syntax.
 
-Return ONLY the complete React component code with no explanations or comments. The component should be client-side and start with "use client";
+Here's an example of a working component:
+<example>
+// Define the Preview component
+function Preview() {
+  // Define products array directly in the component
+  const items = [
+    { id: 'product-1', name: 'Awesome T-Shirt', price: '$25.00' },
+    { id: 'product-2', name: 'Cool Coffee Mug', price: '$15.00' },
+  ];
+  
+  // Pre-calculate the total price to avoid any scope issues
+  const priceSum = items.reduce((total, item) => {
+    const price = parseFloat(item.price.replace('$', ''));
+    return total + price;
+  }, 0);
+  
+  const totalPrice = priceSum.toFixed(2);
+  
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Product Checkout</h2>
+        <p className="text-muted-foreground">Complete your purchase</p>
+      </div>
+      
+      <div className="space-y-4">
+        <h3 className="font-medium">Your Items</h3>
+        <div className="border rounded-lg divide-y">
+          {items.map((item) => (
+            <div key={item.id} className="p-4 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <Checkbox id={item.id} />
+                <Label htmlFor={item.id}>{item.name}</Label>
+              </div>
+              <div className="font-medium">{item.price}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      <div className="space-y-4">
+        <h3 className="font-medium">Payment Details</h3>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="name">Name on card</Label>
+            <Input id="name" placeholder="John Smith" />
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="card">Card number</Label>
+            <Input id="card" placeholder="1234 5678 9012 3456" />
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="expiry">Expiry date</Label>
+              <Input id="expiry" placeholder="MM/YY" />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="cvc">CVC</Label>
+              <Input id="cvc" placeholder="123" />
+            </div>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  );
+}
+</example>
+
+Return ONLY the complete React component code with no explanations or comments.
 `;
 
     // Call the AI model with or without image based on whether we have a screenshot URL
