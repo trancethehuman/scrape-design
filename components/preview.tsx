@@ -2,7 +2,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import * as React from "react";
@@ -53,6 +60,8 @@ const ShadcnUI = {
   Button,
   Card,
   CardContent,
+  CardFooter,
+  CardDescription,
   CardHeader,
   CardTitle,
   Checkbox,

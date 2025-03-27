@@ -37,6 +37,23 @@ export default function Home() {
     setCode(value);
   };
 
+  // Handle cancellation of generation
+  const cancelGeneration = () => {
+    setIsGenerating(false);
+    setContentStatus("idle");
+    setScreenshotStatus("idle");
+    setAiStatus("idle");
+    setError("Generation cancelled by user");
+  };
+
+  // Handle form submission
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isGenerating && url) {
+      generateWebsite();
+    }
+  };
+
   // Load Babel standalone script
   useEffect(() => {
     const script = document.createElement("script");
@@ -199,24 +216,24 @@ export default function Home() {
   // Helper to render status indicator
   const renderStatusIndicator = (status: StepStatus, label: string) => {
     return (
-      <div className="flex items-center text-xs">
+      <div className="flex items-center text-xs py-1">
         {status === "loading" && (
-          <Loader2 className="h-3 w-3 mr-1 animate-spin text-blue-500" />
+          <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin text-blue-500" />
         )}
         {status === "complete" && (
-          <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+          <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-green-500" />
         )}
         {status === "error" && (
-          <span className="h-3 w-3 mr-1 text-red-500">⚠️</span>
+          <span className="h-3.5 w-3.5 mr-2 text-red-500">⚠️</span>
         )}
         <span
           className={
             status === "complete"
-              ? "text-green-700"
+              ? "text-green-700 font-medium"
               : status === "error"
-              ? "text-red-700"
+              ? "text-red-700 font-medium"
               : status === "loading"
-              ? "text-blue-700"
+              ? "text-blue-700 font-medium"
               : "text-slate-600"
           }
         >
@@ -272,7 +289,7 @@ export default function Home() {
       </header>
 
       <div className="w-full bg-white border-b p-4 flex flex-col space-y-2">
-        <div className="flex items-end space-x-2">
+        <form onSubmit={handleFormSubmit} className="flex items-end space-x-2">
           <div className="flex-1">
             <Label htmlFor="url-input" className="text-sm font-medium">
               Enter URL to convert to shadcn/ui component
@@ -287,21 +304,27 @@ export default function Home() {
               disabled={isGenerating}
             />
           </div>
-          <Button
-            onClick={generateWebsite}
-            disabled={isGenerating || !url}
-            className="ml-2"
-          >
-            {isGenerating ? (
-              <>
+          {isGenerating ? (
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={cancelGeneration}
+                className="ml-2"
+              >
+                Cancel
+              </Button>
+              <Button disabled className="flex items-center">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Generating...
-              </>
-            ) : (
-              "Generate Component"
-            )}
-          </Button>
-        </div>
+              </Button>
+            </div>
+          ) : (
+            <Button type="submit" disabled={!url} className="ml-2">
+              Generate Component
+            </Button>
+          )}
+        </form>
 
         <div className="flex items-center space-x-2">
           <Switch
@@ -316,15 +339,15 @@ export default function Home() {
         </div>
 
         {error && (
-          <div className="text-sm text-red-500 bg-red-50 p-2 rounded">
+          <div className="text-sm text-red-500 bg-red-50 p-2 rounded border border-red-200">
             {error}
           </div>
         )}
 
         {isGenerating && (
-          <div className="flex flex-col space-y-1 text-xs p-2 bg-slate-50 rounded">
-            <div className="text-sm font-medium text-slate-700 mb-1">
-              Generation Progress:
+          <div className="flex flex-col space-y-1 p-3 bg-slate-50 rounded border border-slate-200 shadow-sm">
+            <div className="text-sm font-medium text-slate-700 mb-2">
+              Generation Progress
             </div>
             {renderStatusIndicator(contentStatus, "Website content")}
             {includeScreenshot &&
@@ -334,18 +357,18 @@ export default function Home() {
         )}
 
         {timeElapsed !== null && (
-          <div className="flex flex-col text-sm text-slate-600">
-            <div className="flex items-center">
-              <Clock className="h-3 w-3 mr-1" />
+          <div className="flex flex-col text-sm text-slate-600 p-2 bg-slate-50 rounded border border-slate-200 mt-1">
+            <div className="flex items-center font-medium">
+              <Clock className="h-4 w-4 mr-1.5" />
               Total time: {timeElapsed.toFixed(2)}s
             </div>
             {scrapeDuration && (
-              <div className="text-xs ml-4">
+              <div className="text-xs ml-5 mt-1">
                 Web scraping: {scrapeDuration.toFixed(2)}s
               </div>
             )}
             {aiDuration && (
-              <div className="text-xs ml-4">
+              <div className="text-xs ml-5 mt-0.5">
                 AI generation: {aiDuration.toFixed(2)}s
               </div>
             )}

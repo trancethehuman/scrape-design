@@ -98,6 +98,14 @@ export function ScraperForm() {
     }
   };
 
+  const handleCancel = () => {
+    setIsLoading(false);
+    setResult({
+      success: false,
+      error: "Scraping cancelled by user",
+    });
+  };
+
   const handleTestSdk = async () => {
     setIsTesting(true);
     setTestResult(null);
@@ -135,16 +143,23 @@ export function ScraperForm() {
             disabled={isTesting}
             className="text-xs"
           >
-            {isTesting ? "Testing..." : "Test SDK Connection"}
+            {isTesting ? (
+              <>
+                <AlertCircle className="h-3 w-3 mr-1 animate-pulse" />
+                Testing...
+              </>
+            ) : (
+              "Test SDK Connection"
+            )}
           </Button>
         </div>
 
         {testResult && (
           <div
-            className={`p-3 text-sm rounded-md ${
+            className={`p-3 text-sm rounded-md border ${
               testResult.success
-                ? "bg-green-50 text-green-700"
-                : "bg-red-50 text-red-700"
+                ? "bg-green-50 text-green-700 border-green-200"
+                : "bg-red-50 text-red-700 border-red-200"
             }`}
           >
             <div className="flex items-center gap-2">
@@ -153,10 +168,10 @@ export function ScraperForm() {
               ) : (
                 <AlertCircle className="h-4 w-4" />
               )}
-              <p>{testResult.message}</p>
+              <p className="font-medium">{testResult.message}</p>
             </div>
             {testResult.data && (
-              <pre className="mt-2 text-xs overflow-auto p-2 bg-slate-50 rounded">
+              <pre className="mt-2 text-xs overflow-auto p-2 bg-slate-50 rounded border border-slate-200">
                 {JSON.stringify(testResult.data, null, 2)}
               </pre>
             )}
@@ -169,20 +184,41 @@ export function ScraperForm() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="url">URL to Scrape</Label>
-            <Input
-              id="url"
-              type="url"
-              placeholder="https://example.com"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              required
-              className="w-full"
-            />
+            <div className="flex gap-2">
+              <Input
+                id="url"
+                type="url"
+                placeholder="https://example.com"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                required
+                className="flex-1"
+              />
+              {isLoading ? (
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={handleCancel}
+                  >
+                    Cancel
+                  </Button>
+                  <Button disabled className="flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-2 animate-pulse" />
+                    Scraping...
+                  </Button>
+                </div>
+              ) : (
+                <Button type="submit" disabled={!url}>
+                  Scrape Website
+                </Button>
+              )}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-slate-50 rounded-md border border-slate-200">
             <div className="space-y-4">
-              <h3 className="font-medium">Options</h3>
+              <h3 className="font-medium text-slate-800">Options</h3>
 
               <div className="flex items-center space-x-2">
                 <Checkbox
@@ -239,8 +275,8 @@ export function ScraperForm() {
                 <Label htmlFor="ultraPremium">Use Ultra Premium Proxy</Label>
               </div>
 
-              <div className="mt-2 text-sm text-amber-600 flex items-center gap-1">
-                <AlertCircle className="h-4 w-4" />
+              <div className="mt-2 text-sm text-amber-600 flex items-center gap-1 p-2 bg-amber-50 rounded border border-amber-100">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
                 <span>
                   For heavily protected websites, enable Premium or Ultra
                   Premium
@@ -272,22 +308,26 @@ export function ScraperForm() {
               </div>
             </div>
           </div>
-
-          <Button type="submit" disabled={isLoading || !url} className="w-full">
-            {isLoading ? "Scraping..." : "Scrape Website"}
-          </Button>
         </form>
       </div>
 
       {result && (
-        <div className="space-y-4">
-          <h3 className="text-xl font-semibold">Results</h3>
+        <div className="space-y-4 mt-8">
+          <div className="flex items-center">
+            <h3 className="text-xl font-semibold">Results</h3>
+            {result.success && (
+              <span className="ml-2 bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                Success
+              </span>
+            )}
+          </div>
+
           {!result.success && (
-            <div className="p-4 bg-red-50 text-red-700 rounded-md">
+            <div className="p-4 bg-red-50 text-red-700 rounded-md border border-red-200">
               <p className="font-medium">Error:</p>
               <p>{result.error}</p>
               {result.error?.includes("protected domains") && (
-                <p className="mt-2 font-semibold">
+                <p className="mt-2 font-semibold p-2 bg-amber-50 border border-amber-200 rounded">
                   Try enabling the "Premium" or "Ultra Premium" option and try
                   again.
                 </p>
@@ -297,8 +337,8 @@ export function ScraperForm() {
 
           {result.success && result.screenshot && (
             <div className="space-y-2">
-              <p className="font-medium">Screenshot:</p>
-              <div className="border rounded-lg overflow-hidden">
+              <p className="font-medium text-slate-700">Screenshot:</p>
+              <div className="border rounded-lg overflow-hidden shadow-sm">
                 <img
                   src={result.screenshot}
                   alt="Screenshot of the website"
@@ -310,8 +350,8 @@ export function ScraperForm() {
 
           {result.success && result.data && (
             <div className="space-y-2">
-              <p className="font-medium">Response Data:</p>
-              <Card className="p-4 max-h-96 overflow-auto">
+              <p className="font-medium text-slate-700">Response Data:</p>
+              <Card className="p-4 max-h-96 overflow-auto shadow-sm">
                 {typeof result.data === "string" ? (
                   <pre className="whitespace-pre-wrap text-sm">
                     {result.data}
