@@ -6,6 +6,7 @@ import { Preview } from "@/components/preview";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { examples } from "@/lib/examples";
+import Link from "next/link";
 
 export default function Home() {
   const [code, setCode] = useState(examples.button.code);
@@ -35,6 +36,15 @@ export default function Home() {
             Component Preview
           </h1>
           <div className="ml-auto flex items-center space-x-3">
+            <Link href="/scraper">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-slate-700 hover:text-slate-900"
+              >
+                Web Scraper
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="sm"
