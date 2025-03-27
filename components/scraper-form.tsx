@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { scrapeWebsite } from "@/lib/actions/scraper";
 import { testScraperSdk } from "@/lib/actions/test-scraper";
 import { Button } from "@/components/ui/button";
@@ -16,13 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, CheckCircle2, Clock } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 
 export function ScraperForm() {
   const [url, setUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [scrapeDuration, setScrapeDuration] = useState<number | null>(null);
   const [testResult, setTestResult] = useState<{
     success: boolean;
     message: string;
@@ -34,9 +32,6 @@ export function ScraperForm() {
     data?: any;
     screenshot?: string;
     error?: string;
-    timing?: {
-      serverProcessingTime: number;
-    };
   } | null>(null);
 
   // Options state
@@ -78,7 +73,6 @@ export function ScraperForm() {
     e.preventDefault();
     setIsLoading(true);
     setResult(null);
-    setScrapeDuration(null);
 
     // Ensure URL starts with http:// or https://
     let processedUrl = url;
@@ -86,21 +80,14 @@ export function ScraperForm() {
       processedUrl = "https://" + processedUrl;
     }
 
-    const startTime = performance.now();
-
     try {
       const response = await scrapeWebsite({
         url: processedUrl,
         ...options,
       });
 
-      const endTime = performance.now();
-      setScrapeDuration(endTime - startTime);
-      console.log("Scraper response:", response);
       setResult(response);
     } catch (error) {
-      const endTime = performance.now();
-      setScrapeDuration(endTime - startTime);
       console.error("Error calling scraper:", error);
       setResult({
         success: false,
@@ -128,11 +115,6 @@ export function ScraperForm() {
     } finally {
       setIsTesting(false);
     }
-  };
-
-  // Format duration in seconds with 2 decimal places
-  const formatDuration = (ms: number): string => {
-    return (ms / 1000).toFixed(2);
   };
 
   return (
@@ -299,25 +281,7 @@ export function ScraperForm() {
 
       {result && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-xl font-semibold">Results</h3>
-            {scrapeDuration !== null && (
-              <div className="flex items-center gap-1 text-sm text-slate-600">
-                <Clock className="h-4 w-4" />
-                <span>
-                  Request time: {formatDuration(scrapeDuration)} seconds
-                  {result?.timing && (
-                    <>
-                      {" "}
-                      (server:{" "}
-                      {formatDuration(result.timing.serverProcessingTime)} sec)
-                    </>
-                  )}
-                </span>
-              </div>
-            )}
-          </div>
-
+          <h3 className="text-xl font-semibold">Results</h3>
           {!result.success && (
             <div className="p-4 bg-red-50 text-red-700 rounded-md">
               <p className="font-medium">Error:</p>
@@ -331,43 +295,15 @@ export function ScraperForm() {
             </div>
           )}
 
-          {result.success && (
-            <div className="p-3 bg-green-50 text-green-700 rounded-md flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4" />
-              <p>Request completed successfully</p>
-              {scrapeDuration !== null && (
-                <span className="ml-auto text-sm flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Total: {formatDuration(scrapeDuration)} sec
-                  {result.timing && (
-                    <span className="text-xs ml-1">
-                      (server:{" "}
-                      {formatDuration(result.timing.serverProcessingTime)} sec)
-                    </span>
-                  )}
-                </span>
-              )}
-            </div>
-          )}
-
           {result.success && result.screenshot && (
             <div className="space-y-2">
               <p className="font-medium">Screenshot:</p>
-              <div className="border rounded-lg overflow-hidden bg-white">
-                {/* Use Next.js Image component with unoptimized for data URLs */}
-                <div className="relative w-full" style={{ minHeight: "400px" }}>
-                  <Image
-                    src={result.screenshot}
-                    alt="Screenshot of the website"
-                    fill
-                    style={{ objectFit: "contain" }}
-                    unoptimized
-                    priority
-                  />
-                </div>
-                <div className="p-2 text-xs text-center text-slate-500">
-                  Screenshot of {url}
-                </div>
+              <div className="border rounded-lg overflow-hidden">
+                <img
+                  src={result.screenshot}
+                  alt="Screenshot of the website"
+                  className="w-full"
+                />
               </div>
             </div>
           )}

@@ -5,12 +5,23 @@ import { Editor } from "@/components/editor";
 import { Preview } from "@/components/preview";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Clock } from "lucide-react";
 import { examples } from "@/lib/examples";
 import Link from "next/link";
+import { scrapeWebsite } from "@/lib/actions/scraper";
+import { generateComponent } from "@/lib/actions/generate-component";
 
 export default function Home() {
   const [code, setCode] = useState(examples.button.code);
   const [activeTab, setActiveTab] = useState("editor");
+  const [url, setUrl] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [timeElapsed, setTimeElapsed] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [scrapeDuration, setScrapeDuration] = useState<number | null>(null);
+  const [aiDuration, setAiDuration] = useState<number | null>(null);
 
   const handleCodeChange = (value: string) => {
     setCode(value);
@@ -28,12 +39,92 @@ export default function Home() {
     };
   }, []);
 
+  const generateWebsite = async () => {
+    if (!url) {
+      setError("Please enter a valid URL");
+      return;
+    }
+
+    try {
+      setError(null);
+      setIsGenerating(true);
+      const startTime = performance.now();
+
+      // Make parallel requests for content and screenshot
+      const scrapeStart = performance.now();
+      const [contentResponse, screenshotResponse] = await Promise.all([
+        scrapeWebsite({
+          url,
+          renderJs: true,
+          premium: true,
+          screenshot: false,
+          ultraPremium: false,
+          device: "desktop",
+          autoScroll: false,
+        }),
+        scrapeWebsite({
+          url,
+          screenshot: true,
+          renderJs: true,
+          premium: true,
+          ultraPremium: false,
+          device: "desktop",
+          autoScroll: false,
+        }),
+      ]);
+      const scrapeEnd = performance.now();
+      setScrapeDuration((scrapeEnd - scrapeStart) / 1000);
+
+      if (!contentResponse.success || !screenshotResponse.success) {
+        throw new Error(
+          contentResponse.error ||
+            screenshotResponse.error ||
+            "Failed to scrape website"
+        );
+      }
+
+      const content = contentResponse.data;
+      console.log("Content response:", contentResponse);
+      console.log("Screenshot response:", screenshotResponse);
+
+      // Use server action to generate component with AI
+      const aiStart = performance.now();
+      console.log("Screenshot URL:", screenshotResponse.screenshotUrl);
+      const generationResult = await generateComponent({
+        url,
+        htmlContent: content || "",
+        screenshotUrl: screenshotResponse.screenshotUrl,
+        startTime: Date.now(),
+      });
+      const aiEnd = performance.now();
+      setAiDuration((aiEnd - aiStart) / 1000);
+
+      if (!generationResult.success) {
+        throw new Error(
+          generationResult.error || "Failed to generate component"
+        );
+      }
+
+      setCode(generationResult.code || "");
+      const endTime = performance.now();
+      setTimeElapsed((endTime - startTime) / 1000); // Convert to seconds
+      setActiveTab("editor"); // Switch to editor tab after generation
+    } catch (err) {
+      console.error("Error generating website:", err);
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <main className="flex flex-col bg-slate-50 overflow-hidden h-screen">
       <header className="border-b bg-white shadow-sm shrink-0 h-14 z-10">
         <div className="w-full h-full px-4 flex items-center">
           <h1 className="text-xl font-bold text-slate-800">
-            Component Preview
+            Website to Component
           </h1>
           <div className="ml-auto flex items-center space-x-3">
             <Link href="/scraper">
@@ -73,7 +164,65 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="w-full flex-1 flex flex-col h-[calc(100vh-3.5rem)]">
+      <div className="w-full bg-white border-b p-4 flex flex-col space-y-2">
+        <div className="flex items-end space-x-2">
+          <div className="flex-1">
+            <Label htmlFor="url-input" className="text-sm font-medium">
+              Enter URL to convert to shadcn/ui component
+            </Label>
+            <Input
+              id="url-input"
+              type="url"
+              placeholder="https://example.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="mt-1"
+              disabled={isGenerating}
+            />
+          </div>
+          <Button
+            onClick={generateWebsite}
+            disabled={isGenerating || !url}
+            className="ml-2"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              "Generate Component"
+            )}
+          </Button>
+        </div>
+
+        {error && (
+          <div className="text-sm text-red-500 bg-red-50 p-2 rounded">
+            {error}
+          </div>
+        )}
+
+        {timeElapsed !== null && (
+          <div className="flex flex-col text-sm text-slate-600">
+            <div className="flex items-center">
+              <Clock className="h-3 w-3 mr-1" />
+              Total time: {timeElapsed.toFixed(2)}s
+            </div>
+            {scrapeDuration && (
+              <div className="text-xs ml-4">
+                Web scraping: {scrapeDuration.toFixed(2)}s
+              </div>
+            )}
+            {aiDuration && (
+              <div className="text-xs ml-4">
+                AI generation: {aiDuration.toFixed(2)}s
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="w-full flex-1 flex flex-col h-[calc(100vh-8.5rem)]">
         <Tabs
           defaultValue="editor"
           value={activeTab}

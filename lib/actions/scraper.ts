@@ -26,11 +26,10 @@ type ScraperOptions = z.infer<typeof scraperOptionsSchema>;
 interface ScraperResponse {
   success: boolean;
   data?: any;
-  screenshot?: string; // Base64 encoded screenshot if requested
+  screenshot?: string; // For base64 data (legacy support)
+  screenshotUrl?: string; // For direct URL to screenshot
   error?: string;
-  timing?: {
-    serverProcessingTime: number; // Time taken on the server side in ms
-  };
+  processingTime?: number;
 }
 
 /**
@@ -42,9 +41,7 @@ interface ScraperResponse {
 export async function scrapeWebsite(
   options: ScraperOptions
 ): Promise<ScraperResponse> {
-  // Start timing the server processing
-  const serverStartTime = performance.now();
-
+  const startTime = performance.now();
   try {
     // Validate options
     const validatedOptions = scraperOptionsSchema.parse(options);
@@ -60,15 +57,7 @@ export async function scrapeWebsite(
 
     // For screenshots, we need to use the direct API instead of the SDK
     if (validatedOptions.screenshot) {
-      const result = await handleScreenshotRequest(validatedOptions, apiKey);
-      // Add timing information to the response
-      const serverEndTime = performance.now();
-      return {
-        ...result,
-        timing: {
-          serverProcessingTime: serverEndTime - serverStartTime,
-        },
-      };
+      return await handleScreenshotRequest(validatedOptions, apiKey, startTime);
     }
 
     // Initialize the ScraperAPI SDK with the API key for non-screenshot requests
@@ -116,9 +105,8 @@ export async function scrapeWebsite(
       sdkParams
     );
 
-    // Calculate server processing time
-    const serverEndTime = performance.now();
-    const serverProcessingTime = serverEndTime - serverStartTime;
+    const endTime = performance.now();
+    const processingTime = (endTime - startTime) / 1000;
 
     // For HTML or JSON responses
     try {
@@ -127,9 +115,7 @@ export async function scrapeWebsite(
       return {
         success: true,
         data: jsonData,
-        timing: {
-          serverProcessingTime,
-        },
+        processingTime,
       };
     } catch (e) {
       // If not JSON, treat as HTML or text
@@ -144,23 +130,18 @@ export async function scrapeWebsite(
       return {
         success: true,
         data: data,
-        timing: {
-          serverProcessingTime,
-        },
+        processingTime,
       };
     }
   } catch (error) {
-    // Calculate server processing time even for errors
-    const serverEndTime = performance.now();
-    const serverProcessingTime = serverEndTime - serverStartTime;
-
     console.error("Scraper SDK error:", error);
+    const endTime = performance.now();
+    const processingTime = (endTime - startTime) / 1000;
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
-      timing: {
-        serverProcessingTime,
-      },
+      processingTime,
     };
   }
 }
@@ -170,10 +151,9 @@ export async function scrapeWebsite(
  */
 async function handleScreenshotRequest(
   options: ScraperOptions,
-  apiKey: string
+  apiKey: string,
+  startTime: number
 ): Promise<ScraperResponse> {
-  const screenshotStartTime = performance.now();
-
   try {
     // Build the API URL with parameters
     const params = new URLSearchParams();
@@ -215,9 +195,13 @@ async function handleScreenshotRequest(
       `Making screenshot request to ScraperAPI for URL: ${options.url}`
     );
 
-    // Make request with full response to get access to headers
+    // Instead of converting the image to base64, we'll just return the URL
+    // Check for the screenshot header which contains the URL to the screenshot
     const response = await fetch(apiUrl, {
       method: "GET",
+      headers: {
+        Accept: "*/*",
+      },
       cache: "no-store",
     });
 
@@ -228,98 +212,70 @@ async function handleScreenshotRequest(
       );
     }
 
+    const endTime = performance.now();
+    const processingTime = (endTime - startTime) / 1000;
+
+    // Check for header that contains screenshot URL
+    const screenshotUrl = response.headers.get("sa-screenshot");
     console.log(
       "Response headers:",
-      Object.fromEntries(response.headers.entries())
+      Object.fromEntries([...response.headers.entries()])
     );
-
-    // Check for the sa-screenshot header which contains the screenshot URL
-    const screenshotUrl = response.headers.get("sa-screenshot");
+    console.log("Screenshot URL from header:", screenshotUrl);
 
     if (screenshotUrl) {
-      console.log("Found screenshot URL in headers:", screenshotUrl);
-
-      // Fetch the actual screenshot from the URL
-      const imageResponse = await fetch(screenshotUrl, {
-        cache: "no-store",
-      });
-
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch screenshot from ${screenshotUrl}`);
-      }
-
-      const contentType =
-        imageResponse.headers.get("content-type") || "image/png";
-      const imageBuffer = await imageResponse.arrayBuffer();
-      const base64Image = Buffer.from(imageBuffer).toString("base64");
-      const dataUrl = `data:${contentType};base64,${base64Image}`;
-
-      const screenshotEndTime = performance.now();
-
+      // If we have a URL in the header, return that
       return {
         success: true,
-        screenshot: dataUrl,
-        timing: {
-          serverProcessingTime: screenshotEndTime - screenshotStartTime,
-        },
+        screenshotUrl: screenshotUrl,
+        processingTime,
       };
     }
 
-    // Get content type from headers
+    // Handle the case where the response is the image itself
     const contentType = response.headers.get("content-type") || "";
 
-    // If there's no screenshot URL in headers but the response is an image, use that
     if (contentType.includes("image")) {
-      console.log("Response is an image, using as screenshot");
-      const imageBuffer = await response.arrayBuffer();
-      const base64Image = Buffer.from(imageBuffer).toString("base64");
-      const dataUrl = `data:${contentType};base64,${base64Image}`;
-
-      const screenshotEndTime = performance.now();
-
+      // If we get a direct image, we need to handle it differently since we need a URL, not base64
+      // We'll create a direct URL to ScraperAPI with the same parameters
+      const screenshotUrl = apiUrl; // Use the same API URL as a direct link to the image
       return {
         success: true,
-        screenshot: dataUrl,
-        timing: {
-          serverProcessingTime: screenshotEndTime - screenshotStartTime,
-        },
+        screenshotUrl: screenshotUrl, // Return the URL directly
+        screenshot: `data:${contentType};base64,${Buffer.from(
+          await response.arrayBuffer()
+        ).toString("base64")}`, // Legacy support
+        processingTime,
       };
     }
 
-    // If we didn't get an image, try to parse the response
+    // If we didn't get an image or a screenshot URL, try to parse the response
     const responseText = await response.text();
-    const screenshotEndTime = performance.now();
-
     try {
       // Try to parse as JSON
       const jsonData = JSON.parse(responseText);
       return {
         success: true,
         data: jsonData,
-        timing: {
-          serverProcessingTime: screenshotEndTime - screenshotStartTime,
-        },
+        processingTime,
       };
     } catch (e) {
       // If not JSON, return as text
       return {
         success: true,
         data: responseText,
-        timing: {
-          serverProcessingTime: screenshotEndTime - screenshotStartTime,
-        },
+        processingTime,
       };
     }
   } catch (error) {
-    const screenshotEndTime = performance.now();
-
     console.error("Screenshot request error:", error);
+    const endTime = performance.now();
+    const processingTime = (endTime - startTime) / 1000;
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
-      timing: {
-        serverProcessingTime: screenshotEndTime - screenshotStartTime,
-      },
+      processingTime,
     };
   }
 }
