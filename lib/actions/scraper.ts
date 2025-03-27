@@ -28,6 +28,9 @@ interface ScraperResponse {
   data?: any;
   screenshot?: string; // Base64 encoded screenshot if requested
   error?: string;
+  timing?: {
+    serverProcessingTime: number; // Time taken on the server side in ms
+  };
 }
 
 /**
@@ -39,6 +42,9 @@ interface ScraperResponse {
 export async function scrapeWebsite(
   options: ScraperOptions
 ): Promise<ScraperResponse> {
+  // Start timing the server processing
+  const serverStartTime = performance.now();
+
   try {
     // Validate options
     const validatedOptions = scraperOptionsSchema.parse(options);
@@ -54,7 +60,15 @@ export async function scrapeWebsite(
 
     // For screenshots, we need to use the direct API instead of the SDK
     if (validatedOptions.screenshot) {
-      return await handleScreenshotRequest(validatedOptions, apiKey);
+      const result = await handleScreenshotRequest(validatedOptions, apiKey);
+      // Add timing information to the response
+      const serverEndTime = performance.now();
+      return {
+        ...result,
+        timing: {
+          serverProcessingTime: serverEndTime - serverStartTime,
+        },
+      };
     }
 
     // Initialize the ScraperAPI SDK with the API key for non-screenshot requests
@@ -102,6 +116,10 @@ export async function scrapeWebsite(
       sdkParams
     );
 
+    // Calculate server processing time
+    const serverEndTime = performance.now();
+    const serverProcessingTime = serverEndTime - serverStartTime;
+
     // For HTML or JSON responses
     try {
       // Try to parse as JSON first
@@ -109,6 +127,9 @@ export async function scrapeWebsite(
       return {
         success: true,
         data: jsonData,
+        timing: {
+          serverProcessingTime,
+        },
       };
     } catch (e) {
       // If not JSON, treat as HTML or text
@@ -123,13 +144,23 @@ export async function scrapeWebsite(
       return {
         success: true,
         data: data,
+        timing: {
+          serverProcessingTime,
+        },
       };
     }
   } catch (error) {
+    // Calculate server processing time even for errors
+    const serverEndTime = performance.now();
+    const serverProcessingTime = serverEndTime - serverStartTime;
+
     console.error("Scraper SDK error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
+      timing: {
+        serverProcessingTime,
+      },
     };
   }
 }
@@ -141,6 +172,8 @@ async function handleScreenshotRequest(
   options: ScraperOptions,
   apiKey: string
 ): Promise<ScraperResponse> {
+  const screenshotStartTime = performance.now();
+
   try {
     // Build the API URL with parameters
     const params = new URLSearchParams();
@@ -221,9 +254,14 @@ async function handleScreenshotRequest(
       const base64Image = Buffer.from(imageBuffer).toString("base64");
       const dataUrl = `data:${contentType};base64,${base64Image}`;
 
+      const screenshotEndTime = performance.now();
+
       return {
         success: true,
         screenshot: dataUrl,
+        timing: {
+          serverProcessingTime: screenshotEndTime - screenshotStartTime,
+        },
       };
     }
 
@@ -237,33 +275,51 @@ async function handleScreenshotRequest(
       const base64Image = Buffer.from(imageBuffer).toString("base64");
       const dataUrl = `data:${contentType};base64,${base64Image}`;
 
+      const screenshotEndTime = performance.now();
+
       return {
         success: true,
         screenshot: dataUrl,
+        timing: {
+          serverProcessingTime: screenshotEndTime - screenshotStartTime,
+        },
       };
     }
 
     // If we didn't get an image, try to parse the response
     const responseText = await response.text();
+    const screenshotEndTime = performance.now();
+
     try {
       // Try to parse as JSON
       const jsonData = JSON.parse(responseText);
       return {
         success: true,
         data: jsonData,
+        timing: {
+          serverProcessingTime: screenshotEndTime - screenshotStartTime,
+        },
       };
     } catch (e) {
       // If not JSON, return as text
       return {
         success: true,
         data: responseText,
+        timing: {
+          serverProcessingTime: screenshotEndTime - screenshotStartTime,
+        },
       };
     }
   } catch (error) {
+    const screenshotEndTime = performance.now();
+
     console.error("Screenshot request error:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
+      timing: {
+        serverProcessingTime: screenshotEndTime - screenshotStartTime,
+      },
     };
   }
 }
