@@ -3,6 +3,7 @@
 import { google } from "@ai-sdk/google";
 import { generateText } from "ai";
 import { z } from "zod";
+import { stripCodeBlockMarkers } from "@/lib/utils";
 
 // Define input schema
 const generateComponentInputSchema = z.object({
@@ -177,7 +178,7 @@ Return ONLY the complete React component code with no explanations or comments.
 
     return {
       success: true,
-      code: result.text,
+      code: stripCodeBlockMarkers(result.text),
       processingTime,
     };
   } catch (error) {

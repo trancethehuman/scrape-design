@@ -80,7 +80,7 @@ export function Editor({ code, onChange }: EditorProps) {
   return (
     <Card className="h-full border-0 shadow-none overflow-hidden rounded-none flex flex-col">
       <CardContent
-        className="p-0 flex-1 h-[calc(100vh-3.5rem)] relative"
+        className="p-0 flex-1 h-[calc(100vh-3.5rem)] relative overflow-hidden"
         ref={containerRef}
         onClick={handleContainerClick}
       >
@@ -117,7 +117,7 @@ export function Editor({ code, onChange }: EditorProps) {
             minimap: { enabled: false },
             fontSize: 14,
             wordWrap: "on",
-            scrollBeyondLastLine: false,
+            scrollBeyondLastLine: true,
             automaticLayout: true,
             autoIndent: "full",
             formatOnPaste: true,

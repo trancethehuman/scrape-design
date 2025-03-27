@@ -180,8 +180,8 @@ export function Preview({ code }: PreviewProps) {
   }, [code]);
 
   return (
-    <Card className="h-full border-0 shadow-none overflow-auto rounded-none flex flex-col">
-      <CardContent className="p-0 bg-white flex-1 h-[calc(100vh-3.5rem)] relative">
+    <Card className="h-full border-0 shadow-none overflow-hidden rounded-none flex flex-col">
+      <CardContent className="p-0 bg-white flex-1 h-[calc(100vh-3.5rem)] relative overflow-hidden">
         <div className="absolute right-4 top-4 z-20">
           <Button
             variant="outline"
@@ -193,7 +193,7 @@ export function Preview({ code }: PreviewProps) {
             <span className="sr-only">Refresh preview</span>
           </Button>
         </div>
-        <div className="preview-container p-8 h-full shadow-none bg-white overflow-y-auto">
+        <div className="preview-container p-8 h-full w-full shadow-none bg-white overflow-y-auto">
           <div ref={previewRef} className="min-h-[50vh]" />
         </div>
       </CardContent>

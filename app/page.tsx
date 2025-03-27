@@ -7,11 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Clock } from "lucide-react";
+import { Loader2, Clock, CheckCircle2 } from "lucide-react";
 import { examples } from "@/lib/examples";
 import Link from "next/link";
 import { scrapeWebsite } from "@/lib/actions/scraper";
 import { generateComponent } from "@/lib/actions/generate-component";
+import { Switch } from "@/components/ui/switch";
+
+// Status tracking for each generation step
+type StepStatus = "idle" | "loading" | "complete" | "error";
 
 export default function Home() {
   const [code, setCode] = useState(examples.button.code);
@@ -22,6 +26,12 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [scrapeDuration, setScrapeDuration] = useState<number | null>(null);
   const [aiDuration, setAiDuration] = useState<number | null>(null);
+  const [includeScreenshot, setIncludeScreenshot] = useState(true);
+
+  // Step status tracking
+  const [contentStatus, setContentStatus] = useState<StepStatus>("idle");
+  const [screenshotStatus, setScreenshotStatus] = useState<StepStatus>("idle");
+  const [aiStatus, setAiStatus] = useState<StepStatus>("idle");
 
   const handleCodeChange = (value: string) => {
     setCode(value);
@@ -46,47 +56,83 @@ export default function Home() {
     }
 
     try {
+      // Reset states
       setError(null);
       setIsGenerating(true);
-      const startTime = performance.now();
+      setContentStatus("loading");
+      setScreenshotStatus(includeScreenshot ? "loading" : "idle");
+      setAiStatus("idle");
 
-      // Make parallel requests for content and screenshot
+      const startTime = performance.now();
       const scrapeStart = performance.now();
 
-      // First, get the content which is essential
-      const contentResponse = await scrapeWebsite({
-        url,
-        renderJs: true,
-        premium: false,
-        screenshot: false,
-        ultraPremium: true,
-        device: "desktop",
-        autoScroll: false,
-      });
+      // Prepare requests array - we always need content
+      const requests = [
+        // Content request
+        scrapeWebsite({
+          url,
+          renderJs: true,
+          premium: false,
+          screenshot: false,
+          ultraPremium: true,
+          device: "desktop",
+          autoScroll: false,
+        })
+          .then((response) => {
+            setContentStatus(response.success ? "complete" : "error");
+            return response;
+          })
+          .catch((err) => {
+            console.error("Content scraping failed:", err);
+            setContentStatus("error");
+            throw err;
+          }),
+      ];
 
-      // Then try to get the screenshot, but don't fail if it errors
+      // Add screenshot request only if includeScreenshot is true
       let screenshotResponse: {
         success: boolean;
         screenshotUrl?: string;
         error?: string;
-      } = { success: false };
+      } = {
+        success: false,
+        screenshotUrl: undefined,
+      };
 
-      // try {
-      //   const response = await scrapeWebsite({
-      //     url,
-      //     screenshot: true,
-      //     renderJs: true,
-      //     premium: false,
-      //     ultraPremium: true,
-      //     device: "desktop",
-      //     autoScroll: false,
-      //   });
-      //   screenshotResponse = response;
-      // } catch (err) {
-      //   console.error("Screenshot scraping failed:", err);
-      //   screenshotResponse.error =
-      //     err instanceof Error ? err.message : "Unknown screenshot error";
-      // }
+      if (includeScreenshot) {
+        requests.push(
+          scrapeWebsite({
+            url,
+            screenshot: true,
+            renderJs: true,
+            premium: false,
+            ultraPremium: true,
+            device: "desktop",
+            autoScroll: false,
+          })
+            .then((response) => {
+              setScreenshotStatus(response.success ? "complete" : "error");
+              return response;
+            })
+            .catch((err) => {
+              console.error("Screenshot scraping failed:", err);
+              setScreenshotStatus("error");
+              // Return a minimal response object to continue without screenshot
+              return {
+                success: false,
+                error: err instanceof Error ? err.message : "Screenshot failed",
+                screenshotUrl: undefined,
+              };
+            })
+        );
+      }
+
+      // Execute requests
+      const responses = await Promise.all(requests);
+      const contentResponse = responses[0];
+      if (includeScreenshot && responses.length > 1) {
+        screenshotResponse = responses[1];
+      }
 
       const scrapeEnd = performance.now();
       setScrapeDuration((scrapeEnd - scrapeStart) / 1000);
@@ -99,18 +145,23 @@ export default function Home() {
 
       const content = contentResponse.data;
       console.log("Content response:", contentResponse);
-      console.log("Screenshot response:", screenshotResponse);
+      if (includeScreenshot) {
+        console.log("Screenshot response:", screenshotResponse);
+      }
 
       // Make sure content is a string
       const htmlContentString =
         typeof content === "string" ? content : JSON.stringify(content);
 
       // Use server action to generate component with AI
+      setAiStatus("loading");
       const aiStart = performance.now();
+
       // Safe access to the screenshotUrl which might not exist
-      const screenshotUrl = screenshotResponse.success
-        ? screenshotResponse.screenshotUrl
-        : undefined;
+      const screenshotUrl =
+        includeScreenshot && screenshotResponse.success
+          ? screenshotResponse.screenshotUrl
+          : undefined;
       console.log("Screenshot URL:", screenshotUrl);
 
       const generationResult = await generateComponent({
@@ -118,9 +169,12 @@ export default function Home() {
         htmlContent: htmlContentString,
         screenshotUrl,
         startTime: Date.now(),
+      }).finally(() => {
+        const aiEnd = performance.now();
+        setAiDuration((aiEnd - aiStart) / 1000);
       });
-      const aiEnd = performance.now();
-      setAiDuration((aiEnd - aiStart) / 1000);
+
+      setAiStatus(generationResult.success ? "complete" : "error");
 
       if (!generationResult.success) {
         throw new Error(
@@ -140,6 +194,36 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Helper to render status indicator
+  const renderStatusIndicator = (status: StepStatus, label: string) => {
+    return (
+      <div className="flex items-center text-xs">
+        {status === "loading" && (
+          <Loader2 className="h-3 w-3 mr-1 animate-spin text-blue-500" />
+        )}
+        {status === "complete" && (
+          <CheckCircle2 className="h-3 w-3 mr-1 text-green-500" />
+        )}
+        {status === "error" && (
+          <span className="h-3 w-3 mr-1 text-red-500">⚠️</span>
+        )}
+        <span
+          className={
+            status === "complete"
+              ? "text-green-700"
+              : status === "error"
+              ? "text-red-700"
+              : status === "loading"
+              ? "text-blue-700"
+              : "text-slate-600"
+          }
+        >
+          {label}
+        </span>
+      </div>
+    );
   };
 
   return (
@@ -219,9 +303,33 @@ export default function Home() {
           </Button>
         </div>
 
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="screenshot-toggle"
+            checked={includeScreenshot}
+            onCheckedChange={setIncludeScreenshot}
+            disabled={isGenerating}
+          />
+          <Label htmlFor="screenshot-toggle" className="text-sm text-slate-700">
+            Include screenshot for better results
+          </Label>
+        </div>
+
         {error && (
           <div className="text-sm text-red-500 bg-red-50 p-2 rounded">
             {error}
+          </div>
+        )}
+
+        {isGenerating && (
+          <div className="flex flex-col space-y-1 text-xs p-2 bg-slate-50 rounded">
+            <div className="text-sm font-medium text-slate-700 mb-1">
+              Generation Progress:
+            </div>
+            {renderStatusIndicator(contentStatus, "Website content")}
+            {includeScreenshot &&
+              renderStatusIndicator(screenshotStatus, "Website screenshot")}
+            {renderStatusIndicator(aiStatus, "AI component generation")}
           </div>
         )}
 
@@ -245,7 +353,7 @@ export default function Home() {
         )}
       </div>
 
-      <div className="w-full flex-1 flex flex-col h-[calc(100vh-8.5rem)]">
+      <div className="w-full flex-1 flex flex-col h-[calc(100vh-8.5rem)] overflow-hidden">
         <Tabs
           defaultValue="editor"
           value={activeTab}
@@ -268,24 +376,24 @@ export default function Home() {
           </TabsList>
           <TabsContent
             value="editor"
-            className="flex-1 data-[state=active]:flex flex-col h-full"
+            className="flex-1 data-[state=active]:flex flex-col h-full overflow-hidden"
           >
             <Editor code={code} onChange={handleCodeChange} />
           </TabsContent>
           <TabsContent
             value="preview"
-            className="flex-1 data-[state=active]:flex flex-col h-full"
+            className="flex-1 data-[state=active]:flex flex-col h-full overflow-hidden"
           >
             <Preview code={code} />
           </TabsContent>
         </Tabs>
 
-        <div className="hidden md:grid md:grid-cols-2 h-full relative">
-          <div className="h-full col-span-1">
+        <div className="hidden md:grid md:grid-cols-2 h-full relative overflow-hidden">
+          <div className="h-full col-span-1 overflow-hidden">
             <Editor code={code} onChange={handleCodeChange} />
           </div>
           <div className="absolute top-0 bottom-0 left-1/2 w-px bg-slate-200"></div>
-          <div className="h-full col-span-1">
+          <div className="h-full col-span-1 overflow-hidden">
             <Preview code={code} />
           </div>
         </div>
